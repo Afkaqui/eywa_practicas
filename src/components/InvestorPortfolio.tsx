@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from 'react';
-import { Search, Filter, Download, TrendingUp, AlertCircle, X, FileText, Calendar, CheckSquare } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Filter, Download, TrendingUp, AlertCircle, X, FileText, Calendar, CheckSquare, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { PortfolioCompany } from '@/lib/types/database';
 
 const logo = "/logo.png";
 
 export function InvestorPortfolio() {
+  const supabase = createClient();
+  const [companies, setCompanies] = useState<PortfolioCompany[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  const fetchCompanies = useCallback(async () => {
+    const { data } = await supabase.from('portfolio_companies').select('*').order('score', { ascending: false });
+    if (data) setCompanies(data);
+    setLoadingData(false);
+  }, [supabase]);
+
+  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
   const [reportForm, setReportForm] = useState({
     type: 'trimestral',
     title: '',
@@ -57,59 +70,6 @@ export function InvestorPortfolio() {
       metrics: [],
     });
   };
-
-  const companies = [
-    {
-      name: 'Amazonia Agrotech',
-      sector: 'Agricultura',
-      score: 85,
-      status: 'Verificado',
-      carbon: '1,204t',
-      trend: '+5%',
-      lastAudit: 'Hace 2 días',
-      risk: 'bajo',
-    },
-    {
-      name: 'Verde Innovations',
-      sector: 'Tecnología',
-      score: 78,
-      status: 'Auditoría Pendiente',
-      carbon: '892t',
-      trend: '+2%',
-      lastAudit: 'Hace 14 días',
-      risk: 'medio',
-    },
-    {
-      name: 'EcoSolutions Corp',
-      sector: 'Energía',
-      score: 92,
-      status: 'Verificado',
-      carbon: '2,156t',
-      trend: '+8%',
-      lastAudit: 'Hace 1 día',
-      risk: 'bajo',
-    },
-    {
-      name: 'BioTech Dynamics',
-      sector: 'Biotecnología',
-      score: 71,
-      status: 'En Revisión',
-      carbon: '645t',
-      trend: '-1%',
-      lastAudit: 'Hace 21 días',
-      risk: 'alto',
-    },
-    {
-      name: 'Sustainable Futures Inc',
-      sector: 'Manufactura',
-      score: 88,
-      status: 'Verificado',
-      carbon: '1,567t',
-      trend: '+6%',
-      lastAudit: 'Hace 5 días',
-      risk: 'bajo',
-    },
-  ];
 
   const portfolioStats = [
     { label: 'Valor Total del Portfolio', value: '$142.5M', change: '+12.3%' },
@@ -205,8 +165,8 @@ export function InvestorPortfolio() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {companies.map((company, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors cursor-pointer">
+              {companies.map((company) => (
+                <tr key={company.id} className="hover:bg-gray-50 transition-colors cursor-pointer">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{company.name}</div>
                   </td>
@@ -233,19 +193,19 @@ export function InvestorPortfolio() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{company.carbon}</div>
+                    <div className="text-sm font-medium text-gray-900">{company.carbon || '—'}</div>
                     <div className="text-xs text-gray-500">CO₂ Capturado</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className={`flex items-center gap-1 text-sm font-medium ${
-                      company.trend.startsWith('+') ? 'text-emerald-600' : 'text-red-600'
+                      (company.trend || '').startsWith('+') ? 'text-emerald-600' : 'text-red-600'
                     }`}>
                       <TrendingUp className="w-3 h-3" />
-                      {company.trend}
+                      {company.trend || '—'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600">{company.lastAudit}</div>
+                    <div className="text-sm text-gray-600">{company.last_audit}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">

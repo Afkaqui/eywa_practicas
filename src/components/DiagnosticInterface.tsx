@@ -1,69 +1,97 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Loader2, RefreshCw, TrendingUp, Award, FileText } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { DiagnosticQuestion } from '@/lib/types/database';
 
 const logo = "/logo.png";
 
+// Fallback questions for when DB is empty or unavailable
+const fallbackQuestions = [
+  {
+    title: 'Estado de Certificación Orgánica',
+    description: 'Seleccione el estado actual de certificación orgánica de su empresa.',
+    options: [
+      { label: 'Certificación Orgánica', value: 'yes', score: 15 },
+      { label: 'Sin Certificación', value: 'no', score: 0 },
+      { label: 'En Progreso', value: 'progress', score: 10 },
+      { label: 'Aplicación Reciente', value: 'applied', score: 8 },
+    ],
+    context: { title: 'Certificación Orgánica', description: 'La certificación orgánica valida prácticas agrícolas sostenibles.', impact: '+15 puntos', image: '' }
+  },
+  {
+    title: 'Gestión de Emisiones de Carbono',
+    description: 'Indique el nivel de implementación de sistemas de medición y reducción de emisiones.',
+    options: [
+      { label: 'Sistema Completo Implementado', value: 'complete', score: 20 },
+      { label: 'Sistema Parcial', value: 'partial', score: 12 },
+      { label: 'En Fase de Planificación', value: 'planning', score: 6 },
+      { label: 'Sin Sistema Actual', value: 'none', score: 0 },
+    ],
+    context: { title: 'Emisiones de Carbono', description: 'La medición precisa de emisiones es fundamental para operaciones carbono-neutral.', impact: '+20 puntos', image: '' }
+  },
+  {
+    title: 'Prácticas de Gobernanza Social',
+    description: 'Evalúe las prácticas de gobernanza y responsabilidad social de su organización.',
+    options: [
+      { label: 'Gobernanza Completa', value: 'complete', score: 15 },
+      { label: 'Parcialmente Implementada', value: 'partial', score: 10 },
+      { label: 'En Desarrollo', value: 'developing', score: 5 },
+      { label: 'Sin Prácticas Formales', value: 'none', score: 0 },
+    ],
+    context: { title: 'Gobernanza Social', description: 'Las prácticas de gobernanza social son indicadores clave de sostenibilidad.', impact: '+15 puntos', image: '' }
+  },
+];
+
 export function DiagnosticInterface() {
+  const supabase = createClient();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{[key: number]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  
-  const totalSteps = 3;
-  const progress = ((currentQuestion + 1) / totalSteps) * 100;
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [diagnosticQuestions, setDiagnosticQuestions] = useState<typeof fallbackQuestions>([]);
 
-  const diagnosticQuestions = [
-    {
-      title: 'Estado de Certificación Orgánica',
-      description: 'Seleccione el estado actual de certificación orgánica de su empresa. Esta información es crítica para la evaluación de sostenibilidad y cumplimiento normativo.',
-      options: [
-        { label: 'Certificación Orgánica', value: 'yes', score: 15 },
-        { label: 'Sin Certificación', value: 'no', score: 0 },
-        { label: 'En Progreso', value: 'progress', score: 10 },
-        { label: 'Aplicación Reciente', value: 'applied', score: 8 },
-      ],
-      context: {
-        title: 'Certificación Orgánica',
-        description: 'La certificación orgánica valida prácticas agrícolas sostenibles y garantiza el cumplimiento de estándares ambientales. Esta certificación es un indicador clave para calificaciones ESG y confianza de inversores.',
-        impact: '+15 puntos',
-        image: 'https://images.unsplash.com/photo-1763241841248-11aa17ab625a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2NvYSUyMHBsYW50JTIwbGVhdmVzfGVufDF8fHx8MTc2OTEwMTY4NHww&ixlib=rb-4.1.0&q=80&w=1080'
-      }
-    },
-    {
-      title: 'Gestión de Emisiones de Carbono',
-      description: 'Indique el nivel de implementación de sistemas de medición y reducción de emisiones de carbono en sus operaciones.',
-      options: [
-        { label: 'Sistema Completo Implementado', value: 'complete', score: 20 },
-        { label: 'Sistema Parcial', value: 'partial', score: 12 },
-        { label: 'En Fase de Planificación', value: 'planning', score: 6 },
-        { label: 'Sin Sistema Actual', value: 'none', score: 0 },
-      ],
-      context: {
-        title: 'Emisiones de Carbono',
-        description: 'La medición precisa de emisiones de carbono es fundamental para la transición hacia operaciones carbono-neutral. Los sistemas de monitoreo permiten identificar oportunidades de reducción y demostrar progreso a stakeholders.',
-        impact: '+20 puntos',
-        image: 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080'
-      }
-    },
-    {
-      title: 'Políticas de Cadena de Suministro Sostenible',
-      description: 'Evalúe el grado de implementación de políticas de sostenibilidad en su cadena de suministro y proveedores.',
-      options: [
-        { label: 'Políticas Comprehensivas con Auditorías', value: 'comprehensive', score: 18 },
-        { label: 'Políticas Básicas Implementadas', value: 'basic', score: 11 },
-        { label: 'Desarrollo Inicial', value: 'developing', score: 6 },
-        { label: 'Sin Políticas Formales', value: 'none', score: 0 },
-      ],
-      context: {
-        title: 'Cadena de Suministro',
-        description: 'Una cadena de suministro sostenible garantiza trazabilidad, prácticas éticas y reducción de impacto ambiental en toda la operación. Es esencial para certificaciones internacionales y acceso a mercados premium.',
-        impact: '+18 puntos',
-        image: 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080'
-      }
+  const fetchQuestions = useCallback(async () => {
+    const { data } = await supabase
+      .from('diagnostic_questions')
+      .select('*, diagnostic_options(*)')
+      .order('sort_order');
+
+    if (data && data.length > 0) {
+      setDiagnosticQuestions(data.map((q: DiagnosticQuestion) => ({
+        title: q.title,
+        description: q.description,
+        options: q.diagnostic_options
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(o => ({ label: o.label, value: o.value, score: o.score })),
+        context: {
+          title: q.context_title || q.title,
+          description: q.context_description || '',
+          impact: q.context_impact || '',
+          image: q.context_image || '',
+        },
+      })));
+    } else {
+      setDiagnosticQuestions(fallbackQuestions);
     }
-  ];
+    setLoadingQuestions(false);
+  }, [supabase]);
+
+  useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
+
+  const totalSteps = diagnosticQuestions.length;
+
+  const progress = totalSteps > 0 ? ((currentQuestion + 1) / totalSteps) * 100 : 0;
+
+  if (loadingQuestions || totalSteps === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
 
   const currentQ = diagnosticQuestions[currentQuestion];
   const selectedAnswer = answers[currentQuestion];
@@ -163,7 +191,7 @@ export function DiagnosticInterface() {
   // Results Screen
   if (showResults) {
     const totalScore = calculateScore();
-    const maxScore = 53; // 15 + 20 + 18
+    const maxScore = diagnosticQuestions.reduce((max, q) => max + Math.max(...q.options.map(o => o.score)), 0);
     const scorePercentage = (totalScore / maxScore) * 100;
     const scoreLevel = getScoreLevel(totalScore);
 

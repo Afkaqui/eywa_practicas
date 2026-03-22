@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Plus,
   Search, 
@@ -454,8 +455,8 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; size: number; type: string }>>([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
-  // Plan de cuenta del usuario desde localStorage
-  const accountPlan = (localStorage.getItem('userPlan') || 'free') as 'free' | 'premium';
+  const { profile } = useAuth();
+  const accountPlan = profile?.plan || 'free';
   const maxFiles = accountPlan === 'free' ? 1 : Infinity;
   const canUploadMore = uploadedFiles.length < maxFiles;
 

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from 'react';
-import { Mail, Lock, User, Building2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Mail, Lock, User, Building2, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const logo = "/logo.png";
 
 interface LoginPageProps {
-  onLogin: () => void;
   onBack: () => void;
 }
 
-export function LoginPage({ onLogin, onBack }: LoginPageProps) {
+export function LoginPage({ onBack }: LoginPageProps) {
+  const { signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,41 +24,39 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
     company: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Sistema de autenticación con usuarios de prueba
-    const users = [
-      {
-        email: 'premium@eywa.com',
-        password: 'premium123',
-        plan: 'premium'
-      },
-      {
-        email: 'free@eywa.com',
-        password: 'free123',
-        plan: 'free'
+    setError(null);
+    setSuccessMsg(null);
+    setIsSubmitting(true);
+
+    if (isLogin) {
+      const { error: loginError } = await signIn(formData.email, formData.password);
+      if (loginError) {
+        setError(loginError === 'Invalid login credentials'
+          ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
+          : loginError
+        );
       }
-    ];
-
-    const user = users.find(u => u.email === formData.email && u.password === formData.password);
-    
-    if (isLogin && !user) {
-      alert('Credenciales incorrectas. Prueba:\n\nPlan Premium:\nEmail: premium@eywa.com\nPassword: premium123\n\nPlan Gratuito:\nEmail: free@eywa.com\nPassword: free123');
-      return;
-    }
-
-    // Si encuentra usuario, guardar el plan y email en localStorage
-    if (user) {
-      localStorage.setItem('userPlan', user.plan);
-      localStorage.setItem('userEmail', user.email);
     } else {
-      // Si es registro, por defecto es plan gratuito
-      localStorage.setItem('userPlan', 'free');
-      localStorage.setItem('userEmail', formData.email);
+      if (formData.password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres.');
+        setIsSubmitting(false);
+        return;
+      }
+      const { error: signUpError } = await signUp(
+        formData.email,
+        formData.password,
+        { full_name: formData.name, company: formData.company }
+      );
+      if (signUpError) {
+        setError(signUpError);
+      } else {
+        setSuccessMsg('Cuenta creada. Revisa tu correo para confirmar tu registro.');
+      }
     }
-    
-    onLogin();
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -62,8 +64,7 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
-          {/* Back Button */}
-          <button 
+          <button
             onClick={onBack}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-8 transition-colors"
           >
@@ -71,7 +72,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             Volver al inicio
           </button>
 
-          {/* Logo */}
           <div className="flex items-center gap-3 mb-12">
             <img src={logo} alt="EYWA Logo" className="w-12 h-12 object-contain" />
             <div>
@@ -80,35 +80,33 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             </div>
           </div>
 
-          {/* Title */}
           <div className="mb-8">
             <h1 className="text-4xl font-light text-gray-900 mb-3">
               {isLogin ? 'Bienvenido' : 'Crear cuenta'}
             </h1>
             <p className="text-gray-600">
-              {isLogin 
-                ? 'Accede a tu panel de sostenibilidad' 
+              {isLogin
+                ? 'Accede a tu panel de sostenibilidad'
                 : 'Regístrate para comenzar tu evaluación'}
             </p>
           </div>
 
-          {/* Toggle Login/Register */}
           <div className="flex gap-2 mb-8 bg-gray-100 p-1 rounded-lg">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => { setIsLogin(true); setError(null); setSuccessMsg(null); }}
               className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${
-                isLogin 
-                  ? 'bg-white text-gray-900 shadow-sm' 
+                isLogin
+                  ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Iniciar Sesión
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => { setIsLogin(false); setError(null); setSuccessMsg(null); }}
               className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${
-                !isLogin 
-                  ? 'bg-white text-gray-900 shadow-sm' 
+                !isLogin
+                  ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -116,9 +114,19 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             </button>
           </div>
 
-          {/* Form */}
+          {/* Error / Success Messages */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg">
+              {successMsg}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name (Only for Register) */}
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -138,7 +146,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             )}
 
-            {/* Company (Only for Register) */}
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -158,7 +165,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             )}
 
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Correo electrónico
@@ -176,7 +182,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Contraseña
@@ -190,6 +195,7 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
                   className="w-full pl-11 pr-12 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   placeholder="••••••••"
                   required
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -201,17 +207,16 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             </div>
 
-            {/* Forgot Password (Only for Login) */}
             {isLogin && (
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                   />
                   <span className="text-sm text-gray-600">Recordarme</span>
                 </label>
-                <button 
+                <button
                   type="button"
                   className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >
@@ -220,12 +225,11 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             )}
 
-            {/* Terms (Only for Register) */}
             {!isLogin && (
               <div>
                 <label className="flex items-start gap-2">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 mt-0.5"
                     required
                   />
@@ -243,16 +247,16 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-3.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-semibold shadow-sm"
+              disabled={isSubmitting}
+              className="w-full py-3.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200"></div>
@@ -262,7 +266,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             </div>
           </div>
 
-          {/* Social Login */}
           <div className="grid grid-cols-2 gap-3">
             <button className="py-3 px-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-sm font-medium text-gray-700">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -281,13 +284,12 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
             </button>
           </div>
 
-          {/* Additional Info */}
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-500">
               {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => { setIsLogin(!isLogin); setError(null); setSuccessMsg(null); }}
                 className="text-emerald-600 hover:text-emerald-700 font-semibold"
               >
                 {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
@@ -299,7 +301,7 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
 
       {/* Right Side - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1622353133218-825cfebb6844?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBhZ3JpY3VsdHVyZSUyMGZpZWxkfGVufDF8fHx8MTc2OTEwMjIwMHww&ixlib=rb-4.1.0&q=80&w=1080')`,
@@ -308,7 +310,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/90 to-gray-900/80"></div>
         </div>
 
-        {/* Overlay Content */}
         <div className="relative z-10 h-full flex flex-col justify-between p-12">
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-emerald-300 text-sm font-medium mb-8">
@@ -322,11 +323,10 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
               <span className="font-semibold">verificable y medible</span>
             </h2>
             <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-lg">
-              Accede a diagnósticos profesionales, certificación Gold Seal y métricas en tiempo real 
+              Accede a diagnósticos profesionales, certificación Gold Seal y métricas en tiempo real
               para inversores institucionales.
             </p>
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-lg">
               {[
                 { value: '85', label: 'Trust Score', unit: '/100' },

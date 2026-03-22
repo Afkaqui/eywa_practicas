@@ -2,13 +2,14 @@
 
 import { TrendingUp, Activity, Calendar, Award, ArrowRight, User, Mail, Briefcase, Crown, Sparkles } from 'lucide-react';
 import { ProfessionalTrustGauge } from './ProfessionalTrustGauge';
+import { useAuth } from '@/contexts/AuthContext';
 
 const logo = "/logo.png";
 
 export function HeroDashboard() {
-  // Obtener información del usuario desde localStorage
-  const accountPlan = (localStorage.getItem('userPlan') || 'free') as 'free' | 'premium';
-  const userEmail = localStorage.getItem('userEmail') || 'admin@eywa.com';
+  const { profile } = useAuth();
+  const accountPlan = profile?.plan || 'free';
+  const userEmail = profile?.email || '';
   
   return (
     <div className="min-h-screen bg-white">
@@ -51,7 +52,7 @@ export function HeroDashboard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs md:text-sm font-semibold text-white">Admin User</span>
+                    <span className="text-xs md:text-sm font-semibold text-white">{profile?.full_name || 'Usuario'}</span>
                     {accountPlan === 'premium' && (
                       <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-amber-300" />
                     )}
