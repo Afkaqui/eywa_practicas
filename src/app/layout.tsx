@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   authors: [{ name: "EYWA Platform" }],
   creator: "EYWA",
   publisher: "EYWA Platform",
-  metadataBase: new URL("https://eywa.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://eywa-hazel.vercel.app"),
   alternates: {
     canonical: "/",
     languages: {
@@ -42,21 +42,12 @@ export const metadata: Metadata = {
     title: "EYWA - Plataforma de Orquestación Ecosistémica y Sostenibilidad",
     description:
       "Conectamos gobierno, empresas e inversores en un único flujo de trabajo colaborativo basado en datos verificables para impulsar decisiones sostenibles.",
-    images: [
-      {
-        url: "/icon-512.png",
-        width: 512,
-        height: 512,
-        alt: "EYWA - Sustainability Platform",
-      },
-    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "EYWA - Plataforma de Sostenibilidad",
     description:
       "Orquestación de ecosistemas a través de datos inteligentes para la sostenibilidad medible.",
-    images: ["/icon-512.png"],
   },
   icons: {
     icon: [
