@@ -27,20 +27,18 @@ export default function Page() {
   const [showLogin, setShowLogin] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('hero');
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
-  const [loadingDiagnostic, setLoadingDiagnostic] = useState(false);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
-  // Load latest diagnostic result from Supabase on login
+  // Load latest diagnostic result from Supabase (non-blocking)
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
     const loadResult = async () => {
-      setLoadingDiagnostic(true);
       try {
         const { data } = await supabase
           .from('diagnostic_results')
@@ -48,7 +46,7 @@ export default function Page() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!cancelled && data) {
           setDiagnosticResult({
@@ -59,13 +57,11 @@ export default function Page() {
           });
         }
       } catch {
-        // No results yet or table doesn't exist - that's fine
-      } finally {
-        if (!cancelled) setLoadingDiagnostic(false);
+        // table doesn't exist or no results
       }
     };
-
     loadResult();
+
     return () => { cancelled = true; };
   }, [user, supabase]);
 
@@ -90,7 +86,7 @@ export default function Page() {
     }
   }, [user, supabase]);
 
-  if (loading || loadingDiagnostic) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
 
   if (!user && showLogin) {
     return <LoginPage onBack={() => setShowLogin(false)} />;

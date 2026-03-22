@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types/database';
@@ -23,69 +23,128 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const currentUserId = useRef<string | null>(null);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      setProfile(data);
-    } catch {
-      setProfile(null);
-    }
-  }, [supabase]);
-
-  const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id);
-  }, [user, fetchProfile]);
-
+  // Step 1: Listen for auth state changes ONLY - don't load profile here
   useEffect(() => {
-    let mounted = true;
-
-    const initAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (!mounted) return;
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
-        }
-      } catch {
-        // Supabase connection failed - continue as unauthenticated
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initAuth();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!mounted) return;
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
-        } else {
+      (event, newSession) => {
+        console.log('[Auth] Event:', event, 'User:', newSession?.user?.email ?? 'none');
+
+        if (event === 'SIGNED_OUT') {
+          currentUserId.current = null;
+          setUser(null);
           setProfile(null);
+          setSession(null);
+          setAuthReady(true);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
+
+        if (newSession?.user) {
+          // Only update state if user actually changed - prevents loops
+          if (currentUserId.current !== newSession.user.id) {
+            currentUserId.current = newSession.user.id;
+            setUser(newSession.user);
+            setSession(newSession);
+            setAuthReady(true);
+          } else {
+            // Same user, just update session silently (token refresh)
+            setSession(newSession);
+          }
+        } else if (event === 'INITIAL_SESSION') {
+          // No session = not logged in
+          setAuthReady(true);
+          setLoading(false);
+        }
       }
     );
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, fetchProfile]);
+  }, [supabase]);
+
+  // Step 2: Load profile AFTER auth is ready and user exists
+  // This runs in a separate effect so the session is fully established
+  useEffect(() => {
+    if (!authReady) return;
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      // Small delay to ensure session cookies are fully propagated
+      await new Promise(r => setTimeout(r, 100));
+      if (cancelled) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        console.log('[Auth] Profile load - data:', data?.email, 'error:', error?.message);
+
+        if (cancelled) return;
+
+        if (data) {
+          setProfile(data);
+          setLoading(false);
+        } else if (error) {
+          // RLS might have blocked - retry once after a longer delay
+          console.log('[Auth] Profile query error, retrying in 500ms...');
+          await new Promise(r => setTimeout(r, 500));
+          if (cancelled) return;
+
+          const { data: retryData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (!cancelled) {
+            setProfile(retryData ?? null);
+            setLoading(false);
+          }
+        } else {
+          // No profile exists and no error - profile might not be created yet
+          setProfile(null);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setProfile(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => { cancelled = true; };
+  }, [authReady, user, supabase]);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+    setProfile(data ?? null);
+  }, [user, supabase]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -103,41 +162,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { data: metadata },
     });
     if (error) return { error: error.message };
-
-    const { data: { user: newUser } } = await supabase.auth.getUser();
-    if (newUser) {
-      await supabase
-        .from('profiles')
-        .update({ company: metadata.company, full_name: metadata.full_name })
-        .eq('id', newUser.id);
-    }
-
     return { error: null };
   }, [supabase]);
 
   const handleSignOut = useCallback(async () => {
-    // Clear state first so UI updates immediately
     setUser(null);
     setProfile(null);
     setSession(null);
     setLoading(false);
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // State already cleared, ignore Supabase errors
-    }
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
   }, [supabase]);
 
   return (
     <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut: handleSignOut,
-      refreshProfile,
+      user, profile, session, loading,
+      signIn, signUp, signOut: handleSignOut, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
