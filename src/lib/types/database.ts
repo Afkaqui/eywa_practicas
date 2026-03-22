@@ -47,3 +47,10 @@ export interface DiagnosticOption {
   score: number;
   sort_order: number;
 }
+
+export interface DiagnosticResult {
+  score: number;
+  maxScore: number;
+  breakdown: { label: string; score: number; maxScore: number }[];
+  completedAt: string;
+}

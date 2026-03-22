@@ -1,15 +1,26 @@
 "use client";
 
-import { TrendingUp, Activity, Calendar, Award, ArrowRight, User, Mail, Briefcase, Crown, Sparkles } from 'lucide-react';
+import { TrendingUp, Activity, Calendar, Award, ArrowRight, User, Mail, Briefcase, Crown, Sparkles, Stethoscope } from 'lucide-react';
 import { ProfessionalTrustGauge } from './ProfessionalTrustGauge';
 import { useAuth } from '@/contexts/AuthContext';
+import type { DiagnosticResult } from '@/lib/types/database';
 
 const logo = "/logo.png";
 
-export function HeroDashboard() {
+interface HeroDashboardProps {
+  diagnosticResult?: DiagnosticResult | null;
+  onStartDiagnostic?: () => void;
+}
+
+export function HeroDashboard({ diagnosticResult, onStartDiagnostic }: HeroDashboardProps) {
   const { profile } = useAuth();
   const accountPlan = profile?.plan || 'free';
   const userEmail = profile?.email || '';
+
+  const hasScore = diagnosticResult !== null && diagnosticResult !== undefined;
+  const score = hasScore ? Math.round((diagnosticResult.score / diagnosticResult.maxScore) * 100) : 0;
+  const scoreLevel = score >= 80 ? 'Excelente' : score >= 60 ? 'Bueno' : score >= 40 ? 'Moderado' : 'Inicial';
+  const sealLabel = score >= 80 ? 'Gold Seal' : score >= 60 ? 'Silver Seal' : score >= 40 ? 'Bronze Seal' : 'Sin Certificación';
   
   return (
     <div className="min-h-screen bg-white">
@@ -87,54 +98,86 @@ export function HeroDashboard() {
         {/* Trust Score - Central Element */}
         <div className="mb-6 md:mb-8">
           <div className="bg-white/70 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-2xl p-6 md:p-8 lg:p-12">
-            <div className="flex flex-col lg:flex-row items-center lg:items-center justify-between gap-8">
-              {/* Gauge */}
-              <div className="flex-1 flex justify-center w-full">
-                <ProfessionalTrustGauge score={85} />
+            {hasScore ? (
+              <div className="flex flex-col lg:flex-row items-center lg:items-center justify-between gap-8">
+                {/* Gauge */}
+                <div className="flex-1 flex justify-center w-full">
+                  <ProfessionalTrustGauge score={score} />
+                </div>
+
+                {/* Score Details */}
+                <div className="flex-1 space-y-4 md:space-y-6 w-full lg:pl-12 lg:border-l border-gray-200">
+                  <div>
+                    <div className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Calificación Trust Score</div>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900">{score}</span>
+                      <span className="text-xl md:text-2xl text-gray-400 font-light">/100</span>
+                    </div>
+                    <div className="mt-2 text-sm text-gray-500">
+                      {diagnosticResult.score} de {diagnosticResult.maxScore} puntos · Nivel: <span className="font-semibold text-gray-900">{scoreLevel}</span>
+                    </div>
+                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200/50 rounded-md">
+                      <Award className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs md:text-sm font-medium text-amber-700">Certificación {sealLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 md:pt-6 border-t border-gray-200">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Desglose por Categoría</div>
+                    <div className="space-y-3">
+                      {diagnosticResult.breakdown.map((item, i) => {
+                        const pct = item.maxScore > 0 ? Math.round((item.score / item.maxScore) * 100) : 0;
+                        return (
+                          <div key={i} className="flex items-center gap-3">
+                            <span className="text-xs md:text-sm text-gray-600 w-20 md:w-36 truncate" title={item.label}>{item.label}</span>
+                            <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700"
+                                style={{ width: `${pct}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs md:text-sm font-semibold text-gray-900 w-10 text-right">{pct}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-4 md:mt-6">
+                    <button
+                      onClick={onStartDiagnostic}
+                      className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm flex items-center justify-center gap-2"
+                    >
+                      <Stethoscope className="w-4 h-4" />
+                      Repetir Diagnóstico
+                    </button>
+                  </div>
+
+                  <div className="text-xs text-gray-400 text-center">
+                    Completado el {new Date(diagnosticResult.completedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
               </div>
-
-              {/* Score Details */}
-              <div className="flex-1 space-y-4 md:space-y-6 w-full lg:pl-12 lg:border-l border-gray-200">
-                <div>
-                  <div className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Calificación Trust Score</div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900">85</span>
-                    <span className="text-xl md:text-2xl text-gray-400 font-light">/100</span>
-                  </div>
-                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200/50 rounded-md">
-                    <Award className="w-4 h-4 text-amber-600" />
-                    <span className="text-xs md:text-sm font-medium text-amber-700">Certificación Gold Seal</span>
-                  </div>
+            ) : (
+              /* No diagnostic yet - CTA */
+              <div className="flex flex-col items-center text-center py-8">
+                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-6">
+                  <ProfessionalTrustGauge score={0} />
                 </div>
-
-                <div className="pt-4 md:pt-6 border-t border-gray-200">
-                  <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Desglose de Score</div>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Ambiental', value: 92 },
-                      { label: 'Social', value: 81 },
-                      { label: 'Gobernanza', value: 82 },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="text-xs md:text-sm text-gray-600 w-20 md:w-28">{item.label}</span>
-                        <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600"
-                            style={{ width: `${item.value}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs md:text-sm font-semibold text-gray-900 w-10 text-right">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button className="w-full mt-4 md:mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-medium text-sm flex items-center justify-center gap-2">
-                  Ver Reporte Completo
+                <h3 className="text-2xl md:text-3xl font-light text-gray-900 mb-3">Sin diagnóstico aún</h3>
+                <p className="text-gray-500 mb-8 max-w-md">
+                  Completa el cuestionario de diagnóstico ESG para obtener tu Trust Score y descubrir tu nivel de sostenibilidad.
+                </p>
+                <button
+                  onClick={onStartDiagnostic}
+                  className="px-8 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-medium text-sm flex items-center gap-2 shadow-lg"
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  Iniciar Diagnóstico
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

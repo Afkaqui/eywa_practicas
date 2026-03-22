@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Loader2, RefreshCw, TrendingUp, Award, FileText } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@supabase/ssr';
 import type { DiagnosticQuestion } from '@/lib/types/database';
 
 const logo = "/logo.png";
@@ -44,8 +44,20 @@ const fallbackQuestions = [
   },
 ];
 
-export function DiagnosticInterface() {
-  const supabase = createClient();
+interface DiagnosticInterfaceProps {
+  onScoreComplete?: (result: {
+    score: number;
+    maxScore: number;
+    breakdown: { label: string; score: number; maxScore: number }[];
+    completedAt: string;
+  }) => void;
+}
+
+export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProps) {
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{[key: number]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -136,10 +148,30 @@ export function DiagnosticInterface() {
 
   const handleProcessResults = () => {
     setIsProcessing(true);
-    // Simulate processing time
     setTimeout(() => {
       setIsProcessing(false);
       setShowResults(true);
+
+      // Send result to parent
+      if (onScoreComplete) {
+        const totalScore = calculateScore();
+        const maxScore = diagnosticQuestions.reduce((max, q) => max + Math.max(...q.options.map(o => o.score)), 0);
+        const breakdown = diagnosticQuestions.map((q, i) => {
+          const answer = answers[i];
+          const selected = q.options.find(opt => opt.value === answer);
+          return {
+            label: q.title,
+            score: selected?.score || 0,
+            maxScore: Math.max(...q.options.map(o => o.score)),
+          };
+        });
+        onScoreComplete({
+          score: totalScore,
+          maxScore,
+          breakdown,
+          completedAt: new Date().toISOString(),
+        });
+      }
     }, 3000);
   };
 

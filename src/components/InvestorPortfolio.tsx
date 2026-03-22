@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Filter, Download, TrendingUp, AlertCircle, X, FileText, Calendar, CheckSquare, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@supabase/ssr';
 import type { PortfolioCompany } from '@/lib/types/database';
 
 const logo = "/logo.png";
 
 export function InvestorPortfolio() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
   const [companies, setCompanies] = useState<PortfolioCompany[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);

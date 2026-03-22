@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { createBrowserClient } from '@supabase/ssr';
 import { HomePage } from '@/components/HomePage';
 import { LoginPage } from '@/components/LoginPage';
 import { HeroDashboard } from '@/components/HeroDashboard';
@@ -14,8 +15,9 @@ import { SuperAdminDashboard } from '@/components/SuperAdminDashboard';
 import { AdminDashboard } from '@/components/AdminDashboard';
 import { GestorDashboard } from '@/components/GestorDashboard';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import type { DiagnosticResult } from '@/lib/types/database';
 
-export type ViewType =
+type ViewType =
   | 'hero' | 'diagnostic' | 'portfolio' | 'mobile' | 'validator'
   | 'notifications' | 'settings'
   | 'superadmin' | 'admin' | 'gestor';
@@ -24,8 +26,71 @@ export default function Page() {
   const { user, profile, loading, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('hero');
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+  const [loadingDiagnostic, setLoadingDiagnostic] = useState(false);
 
-  if (loading) return <LoadingScreen />;
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
+
+  // Load latest diagnostic result from Supabase on login
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    const loadResult = async () => {
+      setLoadingDiagnostic(true);
+      try {
+        const { data } = await supabase
+          .from('diagnostic_results')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!cancelled && data) {
+          setDiagnosticResult({
+            score: data.score,
+            maxScore: data.max_score,
+            breakdown: data.breakdown as DiagnosticResult['breakdown'],
+            completedAt: data.created_at,
+          });
+        }
+      } catch {
+        // No results yet or table doesn't exist - that's fine
+      } finally {
+        if (!cancelled) setLoadingDiagnostic(false);
+      }
+    };
+
+    loadResult();
+    return () => { cancelled = true; };
+  }, [user, supabase]);
+
+  // Save diagnostic result to Supabase
+  const handleDiagnosticComplete = useCallback(async (result: DiagnosticResult) => {
+    setDiagnosticResult(result);
+
+    if (user) {
+      const percentage = Math.round((result.score / result.maxScore) * 100);
+      const level = percentage >= 80 ? 'Excelente' : percentage >= 60 ? 'Bueno' : percentage >= 40 ? 'Moderado' : 'Inicial';
+
+      await supabase
+        .from('diagnostic_results')
+        .insert({
+          user_id: user.id,
+          score: result.score,
+          max_score: result.maxScore,
+          percentage,
+          level,
+          breakdown: result.breakdown,
+        });
+    }
+  }, [user, supabase]);
+
+  if (loading || loadingDiagnostic) return <LoadingScreen />;
 
   if (!user && showLogin) {
     return <LoginPage onBack={() => setShowLogin(false)} />;
@@ -49,8 +114,8 @@ export default function Page() {
       />
 
       <div className="flex-1 ml-0 md:ml-20 pb-20 md:pb-0 transition-all duration-300">
-        {currentView === 'hero' && <HeroDashboard />}
-        {currentView === 'diagnostic' && <DiagnosticInterface />}
+        {currentView === 'hero' && <HeroDashboard diagnosticResult={diagnosticResult} onStartDiagnostic={() => setCurrentView('diagnostic')} />}
+        {currentView === 'diagnostic' && <DiagnosticInterface onScoreComplete={(result) => { handleDiagnosticComplete(result); setCurrentView('hero'); }} />}
         {currentView === 'validator' && <ValidadorProyectos />}
         {currentView === 'portfolio' && <InvestorPortfolio />}
         {currentView === 'mobile' && <MobileApp />}

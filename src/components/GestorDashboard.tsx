@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Database, Plus, Pencil, Trash2, X, Search, Loader2, BarChart3, FileText } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@supabase/ssr';
 import type { PortfolioCompany, DiagnosticQuestion, DiagnosticOption } from '@/lib/types/database';
 
 type Tab = 'portfolio' | 'questions';
@@ -57,7 +57,10 @@ export function GestorDashboard() {
 /* ═══════════════════════ PORTFOLIO MANAGER ═══════════════════════ */
 
 function PortfolioManager() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
   const [companies, setCompanies] = useState<PortfolioCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -280,7 +283,10 @@ function PortfolioManager() {
 /* ═══════════════════════ QUESTIONS MANAGER ═══════════════════════ */
 
 function QuestionsManager() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
   const [questions, setQuestions] = useState<DiagnosticQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
