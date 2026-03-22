@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId20" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://impactfrontiers.org/norms/five-dimensions-of-impact/" TargetMode="External"/>
+  <Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.data4sdgs.org/recipes-interoperability-and-data-format" TargetMode="External"/>
+  <Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.consensus.com/interoperability/" TargetMode="External"/>
+  <Relationship Id="rId21" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://impacttoolkit.thegiin.org/irisplus/" TargetMode="External"/>
+  <Relationship Id="rId13" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://s3.amazonaws.com/giin-web-assets/iris/assets/files/guidance/IRIS_IMPalignment_20190510.pdf" TargetMode="External"/>
+  <Relationship Id="rId12" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.novata.com/resources/blog/interoperability-of-climate-related-disclosures/" TargetMode="External"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+  <Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://brights.io/blog/scalable-saas-architecture-tips" TargetMode="External"/>
+  <Relationship Id="rId15" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://prism.sustainability-directory.com/area/blockchain-for-impact-investing/resource/1/" TargetMode="External"/>
+  <Relationship Id="rId14" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.impactacademyproject.eu/mapping-docs/iris_impact_reporting_and_investment_standards.pdf" TargetMode="External"/>
+  <Relationship Id="rId17" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.researchgate.net/publication/391654588_Transparency_and_Traceability_in_Sustainable_Finance_Using_Blockchain" TargetMode="External"/>
+  <Relationship Id="rId16" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://sustainability-directory.com/question/how-might-blockchain-improve-the-impact-measurement-and-reporting-processes-in-sustainable-investing/" TargetMode="External"/>
+  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId19" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.clicdata.com/blog/why-user-friendly-and-interactive-data-dashboards-matter/" TargetMode="External"/>
+  <Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.researchgate.net/publication/388176221_The_Ultimate_Guide_to_Building_Scalable_Industry-Agnostic_Data_Platforms" TargetMode="External"/>
+  <Relationship Id="rId18" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://metricswatch.com/insights/how-to-design-user-friendly-dashboard-interfaces" TargetMode="External"/>
+  <Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.wealthformula.com/blog/analytics-for-investment-strategies/" TargetMode="External"/>
+  <Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://blogs.cfainstitute.org/investor/2025/06/10/ai-in-investment-management-5-lessons-from-the-front-lines/" TargetMode="External"/>
+</Relationships>
