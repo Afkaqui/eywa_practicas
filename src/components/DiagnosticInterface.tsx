@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Loader2, RefreshCw, TrendingUp, Award, FileText } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { useSupabase } from '@/lib/supabase/use-supabase';
+import { DiagnosticRepository } from '@/lib/repositories/diagnostic-repository';
+import { getScoreLevel } from '@/lib/constants/scoring';
 import type { DiagnosticQuestion } from '@/lib/types/database';
 
 const logo = "/logo.png";
@@ -54,10 +56,8 @@ interface DiagnosticInterfaceProps {
 }
 
 export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProps) {
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = useSupabase();
+  const diagnosticRepo = useMemo(() => new DiagnosticRepository(supabase), [supabase]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{[key: number]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -66,10 +66,10 @@ export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProp
   const [diagnosticQuestions, setDiagnosticQuestions] = useState<typeof fallbackQuestions>([]);
 
   const fetchQuestions = useCallback(async () => {
-    const { data } = await supabase
-      .from('diagnostic_questions')
-      .select('*, diagnostic_options(*)')
-      .order('sort_order');
+    let data: DiagnosticQuestion[] = [];
+    try {
+      data = await diagnosticRepo.getQuestions();
+    } catch { /* fallback below */ }
 
     if (data && data.length > 0) {
       setDiagnosticQuestions(data.map((q: DiagnosticQuestion) => ({
@@ -89,7 +89,7 @@ export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProp
       setDiagnosticQuestions(fallbackQuestions);
     }
     setLoadingQuestions(false);
-  }, [supabase]);
+  }, [diagnosticRepo]);
 
   useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
 
@@ -121,11 +121,11 @@ export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProp
     return totalScore;
   };
 
-  const getScoreLevel = (score: number) => {
-    if (score >= 45) return { level: 'Excelente', color: 'emerald', description: 'Su empresa demuestra un compromiso sólido con la sostenibilidad' };
-    if (score >= 30) return { level: 'Bueno', color: 'green', description: 'Buen progreso en sostenibilidad con áreas de mejora identificadas' };
-    if (score >= 15) return { level: 'Moderado', color: 'yellow', description: 'Se requiere mayor inversión en iniciativas de sostenibilidad' };
-    return { level: 'Inicial', color: 'orange', description: 'Oportunidad significativa para desarrollo de prácticas sostenibles' };
+  const getDiagnosticScoreLevel = (score: number) => {
+    if (score >= 45) return { level: 'Excelente', color: 'emerald', description: 'Su empresa demuestra un compromiso solido con la sostenibilidad' };
+    if (score >= 30) return { level: 'Bueno', color: 'green', description: 'Buen progreso en sostenibilidad con areas de mejora identificadas' };
+    if (score >= 15) return { level: 'Moderado', color: 'yellow', description: 'Se requiere mayor inversion en iniciativas de sostenibilidad' };
+    return { level: 'Inicial', color: 'orange', description: 'Oportunidad significativa para desarrollo de practicas sostenibles' };
   };
 
   const handleNext = () => {
@@ -225,7 +225,7 @@ export function DiagnosticInterface({ onScoreComplete }: DiagnosticInterfaceProp
     const totalScore = calculateScore();
     const maxScore = diagnosticQuestions.reduce((max, q) => max + Math.max(...q.options.map(o => o.score)), 0);
     const scorePercentage = (totalScore / maxScore) * 100;
-    const scoreLevel = getScoreLevel(totalScore);
+    const scoreLevel = getDiagnosticScoreLevel(totalScore);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50">

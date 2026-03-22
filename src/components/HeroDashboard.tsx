@@ -3,6 +3,7 @@
 import { TrendingUp, Activity, Calendar, Award, ArrowRight, User, Mail, Briefcase, Crown, Sparkles, Stethoscope } from 'lucide-react';
 import { ProfessionalTrustGauge } from './ProfessionalTrustGauge';
 import { useAuth } from '@/contexts/AuthContext';
+import { calculatePercentage, getScoreLevel, getSealLabel } from '@/lib/constants/scoring';
 import type { DiagnosticResult } from '@/lib/types/database';
 
 const logo = "/logo.png";
@@ -18,9 +19,9 @@ export function HeroDashboard({ diagnosticResult, onStartDiagnostic }: HeroDashb
   const userEmail = profile?.email || '';
 
   const hasScore = diagnosticResult !== null && diagnosticResult !== undefined;
-  const score = hasScore ? Math.round((diagnosticResult.score / diagnosticResult.maxScore) * 100) : 0;
-  const scoreLevel = score >= 80 ? 'Excelente' : score >= 60 ? 'Bueno' : score >= 40 ? 'Moderado' : 'Inicial';
-  const sealLabel = score >= 80 ? 'Gold Seal' : score >= 60 ? 'Silver Seal' : score >= 40 ? 'Bronze Seal' : 'Sin Certificación';
+  const score = hasScore ? calculatePercentage(diagnosticResult.score, diagnosticResult.maxScore) : 0;
+  const scoreLevel = getScoreLevel(score);
+  const sealLabel = getSealLabel(score);
   
   return (
     <div className="min-h-screen bg-white">

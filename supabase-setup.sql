@@ -276,6 +276,107 @@ CREATE POLICY "Users can delete own results"
   USING (auth.uid() = user_id);
 
 -- ════════════════════════════════════════
+-- PASO 6.5: Tablas Edutech (Cursos)
+-- ════════════════════════════════════════
+
+DO $$ BEGIN
+  CREATE TYPE course_level AS ENUM ('basico', 'intermedio', 'avanzado');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE course_category AS ENUM ('agrotech', 'edutech', 'banca_sostenible', 'esg', 'general');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.courses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category course_category NOT NULL DEFAULT 'general',
+  level course_level NOT NULL DEFAULT 'basico',
+  duration_hours INTEGER NOT NULL DEFAULT 1,
+  image_url TEXT,
+  instructor TEXT NOT NULL DEFAULT 'EYWA Academy',
+  lessons_count INTEGER NOT NULL DEFAULT 1,
+  is_published BOOLEAN NOT NULL DEFAULT false,
+  created_by UUID REFERENCES public.profiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS courses_updated_at ON public.courses;
+CREATE TRIGGER courses_updated_at
+  BEFORE UPDATE ON public.courses
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.course_enrollments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  course_id UUID REFERENCES public.courses(id) ON DELETE CASCADE NOT NULL,
+  progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  completed BOOLEAN NOT NULL DEFAULT false,
+  enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  UNIQUE(user_id, course_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_user
+  ON public.course_enrollments(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_course
+  ON public.course_enrollments(course_id);
+
+-- RLS para cursos
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.course_enrollments ENABLE ROW LEVEL SECURITY;
+
+-- ── COURSES ──
+CREATE POLICY "Authenticated users can read published courses"
+  ON public.courses FOR SELECT
+  TO authenticated
+  USING (is_published = true);
+
+CREATE POLICY "Gestors can read all courses"
+  ON public.courses FOR SELECT
+  USING (public.get_user_role() IN ('gestor', 'admin', 'superadmin'));
+
+CREATE POLICY "Gestors can insert courses"
+  ON public.courses FOR INSERT
+  TO authenticated
+  WITH CHECK (public.get_user_role() IN ('gestor', 'admin', 'superadmin'));
+
+CREATE POLICY "Gestors can update courses"
+  ON public.courses FOR UPDATE
+  USING (public.get_user_role() IN ('gestor', 'admin', 'superadmin'));
+
+CREATE POLICY "Gestors can delete courses"
+  ON public.courses FOR DELETE
+  USING (public.get_user_role() IN ('gestor', 'admin', 'superadmin'));
+
+-- ── COURSE ENROLLMENTS ──
+CREATE POLICY "Users can view own enrollments"
+  ON public.course_enrollments FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all enrollments"
+  ON public.course_enrollments FOR SELECT
+  USING (public.get_user_role() IN ('superadmin', 'admin'));
+
+CREATE POLICY "Users can enroll themselves"
+  ON public.course_enrollments FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own enrollment"
+  ON public.course_enrollments FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own enrollment"
+  ON public.course_enrollments FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ════════════════════════════════════════
 -- PASO 7: Datos iniciales (Seed)
 -- ════════════════════════════════════════
 
@@ -350,6 +451,36 @@ BEGIN
     (q3_id, 'En Desarrollo', 'developing', 5, 3),
     (q3_id, 'Sin Prácticas Formales', 'none', 0, 4);
 END $$;
+
+-- Cursos Edutech (solo si la tabla está vacía)
+INSERT INTO public.courses (title, description, category, level, duration_hours, instructor, lessons_count, is_published, image_url)
+SELECT * FROM (VALUES
+  ('Introduccion a la Sostenibilidad ESG',
+   'Aprende los fundamentos de los criterios Ambientales, Sociales y de Gobernanza para evaluar el impacto de tu organizacion.',
+   'esg'::course_category, 'basico'::course_level, 4, 'EYWA Academy', 8, true,
+   'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?w=800&q=80'),
+  ('Certificacion Organica para Agronegocios',
+   'Guia completa para obtener la certificacion organica: requisitos, procesos y beneficios para productores agricolas.',
+   'agrotech'::course_category, 'intermedio'::course_level, 6, 'Ing. Eduardo Noriega', 12, true,
+   'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80'),
+  ('Medicion de Huella de Carbono',
+   'Metodologias y herramientas para medir, reportar y reducir las emisiones de carbono en tu empresa.',
+   'esg'::course_category, 'intermedio'::course_level, 5, 'EYWA Academy', 10, true,
+   'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=800&q=80'),
+  ('Finanzas Sostenibles y Bonos Verdes',
+   'Comprende los instrumentos financieros sostenibles y como acceder a fondos de inversion de impacto.',
+   'banca_sostenible'::course_category, 'avanzado'::course_level, 8, 'Esp. Maria Torres', 15, true,
+   'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80'),
+  ('Buenas Practicas Agricolas (BPA)',
+   'Implementacion de practicas agricolas sostenibles para mejorar la productividad y reducir el impacto ambiental.',
+   'agrotech'::course_category, 'basico'::course_level, 3, 'Ing. Carlos Mendoza', 6, true,
+   'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80'),
+  ('Emprendimiento Digital Sostenible',
+   'Herramientas digitales y estrategias para escalar tu emprendimiento con enfoque en sostenibilidad.',
+   'edutech'::course_category, 'basico'::course_level, 4, 'EYWA Academy', 8, true,
+   'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80')
+) AS v(title, description, category, level, duration_hours, instructor, lessons_count, is_published, image_url)
+WHERE NOT EXISTS (SELECT 1 FROM public.courses LIMIT 1);
 
 -- ════════════════════════════════════════
 -- PASO 8: Crear primer SuperAdmin

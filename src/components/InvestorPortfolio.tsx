@@ -2,25 +2,26 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Filter, Download, TrendingUp, AlertCircle, X, FileText, Calendar, CheckSquare, Loader2 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { useSupabase } from '@/lib/supabase/use-supabase';
+import { PortfolioRepository } from '@/lib/repositories/portfolio-repository';
 import type { PortfolioCompany } from '@/lib/types/database';
 
 const logo = "/logo.png";
 
 export function InvestorPortfolio() {
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = useSupabase();
+  const portfolioRepo = useMemo(() => new PortfolioRepository(supabase), [supabase]);
   const [companies, setCompanies] = useState<PortfolioCompany[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
-    const { data } = await supabase.from('portfolio_companies').select('*').order('score', { ascending: false });
-    if (data) setCompanies(data);
+    try {
+      const data = await portfolioRepo.getAll();
+      setCompanies(data);
+    } catch { /* handle error */ }
     setLoadingData(false);
-  }, [supabase]);
+  }, [portfolioRepo]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
   const [reportForm, setReportForm] = useState({
@@ -33,19 +34,19 @@ export function InvestorPortfolio() {
   });
 
   const reportTypes = [
-    { id: 'trimestral', label: 'Reporte Trimestral', description: 'Análisis de métricas ESG del trimestre' },
-    { id: 'anual', label: 'Reporte Anual', description: 'Revisión completa de sostenibilidad del año' },
-    { id: 'esg', label: 'Reporte ESG Personalizado', description: 'Métricas ambientales, sociales y de gobernanza' },
-    { id: 'carbono', label: 'Reporte de Carbono', description: 'Análisis detallado de emisiones y captura' },
+    { id: 'trimestral', label: 'Reporte Trimestral', description: 'Analisis de metricas ESG del trimestre' },
+    { id: 'anual', label: 'Reporte Anual', description: 'Revision completa de sostenibilidad del ano' },
+    { id: 'esg', label: 'Reporte ESG Personalizado', description: 'Metricas ambientales, sociales y de gobernanza' },
+    { id: 'carbono', label: 'Reporte de Carbono', description: 'Analisis detallado de emisiones y captura' },
   ];
 
   const availableMetrics = [
     'Trust Score Promedio',
     'Impacto de Carbono Total',
     'Certificaciones Activas',
-    'Auditorías Completadas',
+    'Auditorias Completadas',
     'Tendencias de Sostenibilidad',
-    'Análisis de Riesgo',
+    'Analisis de Riesgo',
     'Cumplimiento Regulatorio',
     'Comparativa Sectorial',
   ];
@@ -60,10 +61,8 @@ export function InvestorPortfolio() {
   };
 
   const handleGenerateReport = () => {
-    // Lógica para generar el reporte
     console.log('Generando reporte:', reportForm);
     setShowReportModal(false);
-    // Resetear formulario
     setReportForm({
       type: 'trimestral',
       title: '',
@@ -89,14 +88,14 @@ export function InvestorPortfolio() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-light text-gray-900 mb-2">Portfolio de Inversores</h1>
-              <p className="text-gray-500">Monitoreo de empresas y métricas de sostenibilidad</p>
+              <p className="text-gray-500">Monitoreo de empresas y metricas de sostenibilidad</p>
             </div>
             <div className="flex items-center gap-3">
               <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium flex items-center gap-2">
                 <Download className="w-4 h-4" />
                 Exportar
               </button>
-              <button 
+              <button
                 onClick={() => setShowReportModal(true)}
                 className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all text-sm font-medium"
               >
@@ -140,14 +139,14 @@ export function InvestorPortfolio() {
             <select className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option>Todos los Sectores</option>
               <option>Agricultura</option>
-              <option>Tecnología</option>
-              <option>Energía</option>
+              <option>Tecnologia</option>
+              <option>Energia</option>
             </select>
             <select className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option>Todos los Estados</option>
               <option>Verificado</option>
               <option>Pendiente</option>
-              <option>En Revisión</option>
+              <option>En Revision</option>
             </select>
           </div>
         </div>
@@ -163,7 +162,7 @@ export function InvestorPortfolio() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Impacto de Carbono</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tendencia</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Última Auditoría</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ultima Auditoria</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Riesgo</th>
               </tr>
             </thead>
@@ -186,9 +185,9 @@ export function InvestorPortfolio() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2.5 py-1 rounded text-xs font-medium ${
-                      company.status === 'Verificado' 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                        : company.status === 'Auditoría Pendiente'
+                      company.status === 'Verificado'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : company.status === 'Auditoria Pendiente'
                         ? 'bg-amber-50 text-amber-700 border border-amber-200'
                         : 'bg-blue-50 text-blue-700 border border-blue-200'
                     }`}>
@@ -197,7 +196,7 @@ export function InvestorPortfolio() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{company.carbon || '—'}</div>
-                    <div className="text-xs text-gray-500">CO₂ Capturado</div>
+                    <div className="text-xs text-gray-500">CO2 Capturado</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className={`flex items-center gap-1 text-sm font-medium ${
@@ -248,7 +247,6 @@ export function InvestorPortfolio() {
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl flex items-center justify-center">
@@ -259,30 +257,21 @@ export function InvestorPortfolio() {
                   <p className="text-sm text-gray-500">Genera un reporte personalizado de sostenibilidad</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-all"
-              >
+              <button onClick={() => setShowReportModal(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-all">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="px-8 py-6 space-y-6">
-              {/* Tipo de Reporte */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Tipo de Reporte
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Tipo de Reporte</label>
                 <div className="grid grid-cols-2 gap-3">
                   {reportTypes.map((type) => (
                     <button
                       key={type.id}
                       onClick={() => setReportForm({ ...reportForm, type: type.id })}
                       className={`p-4 border-2 rounded-xl text-left transition-all ${
-                        reportForm.type === type.id
-                          ? 'border-emerald-600 bg-emerald-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                        reportForm.type === type.id ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className="font-semibold text-gray-900 mb-1">{type.label}</div>
@@ -292,11 +281,8 @@ export function InvestorPortfolio() {
                 </div>
               </div>
 
-              {/* Título */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Título del Reporte
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Titulo del Reporte</label>
                 <input
                   type="text"
                   value={reportForm.title}
@@ -306,72 +292,45 @@ export function InvestorPortfolio() {
                 />
               </div>
 
-              {/* Descripción */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Descripcion</label>
                 <textarea
                   value={reportForm.description}
                   onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
-                  placeholder="Descripción breve del alcance y objetivos del reporte..."
+                  placeholder="Descripcion breve del alcance y objetivos del reporte..."
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
                 />
               </div>
 
-              {/* Período */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Fecha Inicio
-                    </div>
+                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Fecha Inicio</div>
                   </label>
-                  <input
-                    type="date"
-                    value={reportForm.startDate}
-                    onChange={(e) => setReportForm({ ...reportForm, startDate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
+                  <input type="date" value={reportForm.startDate} onChange={(e) => setReportForm({ ...reportForm, startDate: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha Fin
-                  </label>
-                  <input
-                    type="date"
-                    value={reportForm.endDate}
-                    onChange={(e) => setReportForm({ ...reportForm, endDate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
+                  <input type="date" value={reportForm.endDate} onChange={(e) => setReportForm({ ...reportForm, endDate: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                 </div>
               </div>
 
-              {/* Métricas a Incluir */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4" />
-                    Métricas a Incluir
-                  </div>
+                  <div className="flex items-center gap-2"><CheckSquare className="w-4 h-4" />Metricas a Incluir</div>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {availableMetrics.map((metric) => (
-                    <button
-                      key={metric}
-                      onClick={() => toggleMetric(metric)}
+                    <button key={metric} onClick={() => toggleMetric(metric)}
                       className={`p-3 border-2 rounded-lg text-left transition-all flex items-center gap-3 ${
-                        reportForm.metrics.includes(metric)
-                          ? 'border-emerald-600 bg-emerald-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                        reportForm.metrics.includes(metric) ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                        reportForm.metrics.includes(metric)
-                          ? 'border-emerald-600 bg-emerald-600'
-                          : 'border-gray-300'
+                        reportForm.metrics.includes(metric) ? 'border-emerald-600 bg-emerald-600' : 'border-gray-300'
                       }`}>
                         {reportForm.metrics.includes(metric) && (
                           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -386,19 +345,14 @@ export function InvestorPortfolio() {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-8 py-4 flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
-              >
+              <button onClick={() => setShowReportModal(false)}
+                className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all">
                 Cancelar
               </button>
-              <button
-                onClick={handleGenerateReport}
+              <button onClick={handleGenerateReport}
                 disabled={!reportForm.title || !reportForm.startDate || !reportForm.endDate || reportForm.metrics.length === 0}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
+                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <FileText className="w-5 h-5" />
                 Generar Reporte
               </button>

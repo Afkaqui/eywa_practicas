@@ -2,26 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Shield, Search, Users, Crown, Loader2 } from 'lucide-react';
+import { ROLE_LABELS, ROLE_COLORS, PLAN_COLORS, API_ROUTES } from '@/lib/constants/roles';
 import type { Profile, UserRole, UserPlan } from '@/lib/types/database';
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  superadmin: 'Super Admin',
-  admin: 'Administrador',
-  gestor: 'Gestor',
-  user: 'Usuario',
-};
-
-const ROLE_COLORS: Record<UserRole, string> = {
-  superadmin: 'bg-red-100 text-red-700',
-  admin: 'bg-purple-100 text-purple-700',
-  gestor: 'bg-blue-100 text-blue-700',
-  user: 'bg-gray-100 text-gray-700',
-};
-
-const PLAN_COLORS: Record<UserPlan, string> = {
-  premium: 'bg-amber-100 text-amber-700',
-  free: 'bg-gray-100 text-gray-600',
-};
 
 export function SuperAdminDashboard() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -30,7 +12,7 @@ export function SuperAdminDashboard() {
   const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch('/api/admin/users');
+    const res = await fetch(API_ROUTES.ADMIN_USERS);
     const data = await res.json();
     if (data.profiles) setProfiles(data.profiles);
     setLoading(false);
@@ -40,7 +22,7 @@ export function SuperAdminDashboard() {
 
   const updateRole = async (userId: string, role: UserRole) => {
     setUpdating(userId);
-    await fetch(`/api/admin/users/${userId}/role`, {
+    await fetch(API_ROUTES.ADMIN_USER_ROLE(userId), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
@@ -51,7 +33,7 @@ export function SuperAdminDashboard() {
 
   const updatePlan = async (userId: string, plan: UserPlan) => {
     setUpdating(userId);
-    await fetch(`/api/admin/users/${userId}/plan`, {
+    await fetch(API_ROUTES.ADMIN_USER_PLAN(userId), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan }),

@@ -54,3 +54,34 @@ export interface DiagnosticResult {
   breakdown: { label: string; score: number; maxScore: number }[];
   completedAt: string;
 }
+
+// ── Edutech ──
+
+export type CourseLevel = 'basico' | 'intermedio' | 'avanzado';
+export type CourseCategory = 'agrotech' | 'edutech' | 'banca_sostenible' | 'esg' | 'general';
+
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  category: CourseCategory;
+  level: CourseLevel;
+  duration_hours: number;
+  image_url: string | null;
+  instructor: string;
+  lessons_count: number;
+  is_published: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseEnrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+  completed: boolean;
+  enrolled_at: string;
+  completed_at: string | null;
+}

@@ -2,19 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Users, Search, Crown, Loader2 } from 'lucide-react';
+import { ROLE_LABELS, PLAN_COLORS, API_ROUTES } from '@/lib/constants/roles';
 import type { Profile, UserPlan } from '@/lib/types/database';
-
-const PLAN_COLORS: Record<UserPlan, string> = {
-  premium: 'bg-amber-100 text-amber-700',
-  free: 'bg-gray-100 text-gray-600',
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  superadmin: 'Super Admin',
-  admin: 'Administrador',
-  gestor: 'Gestor',
-  user: 'Usuario',
-};
 
 export function AdminDashboard() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -24,7 +13,7 @@ export function AdminDashboard() {
   const [filterPlan, setFilterPlan] = useState<'all' | 'free' | 'premium'>('all');
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch('/api/admin/users');
+    const res = await fetch(API_ROUTES.ADMIN_USERS);
     const data = await res.json();
     if (data.profiles) setProfiles(data.profiles);
     setLoading(false);
@@ -34,7 +23,7 @@ export function AdminDashboard() {
 
   const updatePlan = async (userId: string, plan: UserPlan) => {
     setUpdating(userId);
-    await fetch(`/api/admin/users/${userId}/plan`, {
+    await fetch(API_ROUTES.ADMIN_USER_PLAN(userId), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan }),

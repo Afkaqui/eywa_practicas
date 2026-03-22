@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createBrowserClient } from '@supabase/ssr';
+import { useSupabase } from '@/lib/supabase/use-supabase';
+import { DiagnosticRepository } from '@/lib/repositories/diagnostic-repository';
+import { DiagnosticService } from '@/lib/services/diagnostic-service';
+import { hasMinimumRole } from '@/lib/constants/roles';
 import { HomePage } from '@/components/HomePage';
 import { LoginPage } from '@/components/LoginPage';
 import { HeroDashboard } from '@/components/HeroDashboard';
@@ -14,11 +17,12 @@ import { ValidadorProyectos } from '@/components/ValidadorProyectos';
 import { SuperAdminDashboard } from '@/components/SuperAdminDashboard';
 import { AdminDashboard } from '@/components/AdminDashboard';
 import { GestorDashboard } from '@/components/GestorDashboard';
+import { EdutechDashboard } from '@/components/EdutechDashboard';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import type { DiagnosticResult } from '@/lib/types/database';
 
 type ViewType =
-  | 'hero' | 'diagnostic' | 'portfolio' | 'mobile' | 'validator'
+  | 'hero' | 'diagnostic' | 'portfolio' | 'mobile' | 'validator' | 'edutech'
   | 'notifications' | 'settings'
   | 'superadmin' | 'admin' | 'gestor';
 
@@ -28,73 +32,35 @@ export default function Page() {
   const [currentView, setCurrentView] = useState<ViewType>('hero');
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
 
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = useSupabase();
+  const diagnosticService = useMemo(
+    () => new DiagnosticService(new DiagnosticRepository(supabase)),
+    [supabase]
+  );
 
-  // Load latest diagnostic result from Supabase (non-blocking)
+  // Load latest diagnostic result (non-blocking)
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
-    const loadResult = async () => {
-      try {
-        const { data } = await supabase
-          .from('diagnostic_results')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (!cancelled && data) {
-          setDiagnosticResult({
-            score: data.score,
-            maxScore: data.max_score,
-            breakdown: data.breakdown as DiagnosticResult['breakdown'],
-            completedAt: data.created_at,
-          });
-        }
-      } catch {
-        // table doesn't exist or no results
-      }
-    };
-    loadResult();
+    diagnosticService.getLatestResult(user.id)
+      .then(result => { if (!cancelled) setDiagnosticResult(result); })
+      .catch(() => { /* table may not exist */ });
 
     return () => { cancelled = true; };
-  }, [user, supabase]);
+  }, [user, diagnosticService]);
 
-  // Save diagnostic result to Supabase
+  // Save diagnostic result via service
   const handleDiagnosticComplete = useCallback(async (result: DiagnosticResult) => {
     setDiagnosticResult(result);
-
     if (user) {
-      const percentage = Math.round((result.score / result.maxScore) * 100);
-      const level = percentage >= 80 ? 'Excelente' : percentage >= 60 ? 'Bueno' : percentage >= 40 ? 'Moderado' : 'Inicial';
-
-      await supabase
-        .from('diagnostic_results')
-        .insert({
-          user_id: user.id,
-          score: result.score,
-          max_score: result.maxScore,
-          percentage,
-          level,
-          breakdown: result.breakdown,
-        });
+      await diagnosticService.saveResult(user.id, result).catch(() => {});
     }
-  }, [user, supabase]);
+  }, [user, diagnosticService]);
 
   if (loading) return <LoadingScreen />;
-
-  if (!user && showLogin) {
-    return <LoginPage onBack={() => setShowLogin(false)} />;
-  }
-
-  if (!user) {
-    return <HomePage onGetStarted={() => setShowLogin(true)} />;
-  }
+  if (!user && showLogin) return <LoginPage onBack={() => setShowLogin(false)} />;
+  if (!user) return <HomePage onGetStarted={() => setShowLogin(true)} />;
 
   const role = profile?.role || 'user';
 
@@ -115,10 +81,11 @@ export default function Page() {
         {currentView === 'validator' && <ValidadorProyectos />}
         {currentView === 'portfolio' && <InvestorPortfolio />}
         {currentView === 'mobile' && <MobileApp />}
+        {currentView === 'edutech' && <EdutechDashboard />}
 
         {currentView === 'superadmin' && role === 'superadmin' && <SuperAdminDashboard />}
-        {currentView === 'admin' && ['superadmin', 'admin'].includes(role) && <AdminDashboard />}
-        {currentView === 'gestor' && ['superadmin', 'admin', 'gestor'].includes(role) && <GestorDashboard />}
+        {currentView === 'admin' && hasMinimumRole(role, 'admin') && <AdminDashboard />}
+        {currentView === 'gestor' && hasMinimumRole(role, 'gestor') && <GestorDashboard />}
 
         {currentView === 'notifications' && (
           <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 md:p-8">
@@ -131,8 +98,8 @@ export default function Page() {
         {currentView === 'settings' && (
           <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 md:p-8">
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-light text-gray-900 mb-4">Configuración</h2>
-              <p className="text-sm md:text-base text-gray-600">Panel de configuración en desarrollo</p>
+              <h2 className="text-2xl md:text-3xl font-light text-gray-900 mb-4">Configuracion</h2>
+              <p className="text-sm md:text-base text-gray-600">Panel de configuracion en desarrollo</p>
             </div>
           </div>
         )}

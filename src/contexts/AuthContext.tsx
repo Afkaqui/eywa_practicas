@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, u
 import { createBrowserClient } from '@supabase/ssr';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types/database';
+import { ProfileRepository } from '@/lib/repositories/profile-repository';
 
 interface AuthContextType {
   user: User | null;
@@ -30,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
+
+  const profileRepo = useMemo(() => new ProfileRepository(supabase), [supabase]);
 
   // Step 1: Listen for auth state changes ONLY - don't load profile here
   useEffect(() => {
@@ -89,44 +92,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
 
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        console.log('[Auth] Profile load - data:', data?.email, 'error:', error?.message);
+        const data = await profileRepo.getById(user.id);
+        console.log('[Auth] Profile load - data:', data?.email);
 
         if (cancelled) return;
 
         if (data) {
           setProfile(data);
           setLoading(false);
-        } else if (error) {
-          // RLS might have blocked - retry once after a longer delay
-          console.log('[Auth] Profile query error, retrying in 500ms...');
-          await new Promise(r => setTimeout(r, 500));
-          if (cancelled) return;
-
-          const { data: retryData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (!cancelled) {
-            setProfile(retryData ?? null);
-            setLoading(false);
-          }
         } else {
-          // No profile exists and no error - profile might not be created yet
+          // No profile exists - might not be created yet
           setProfile(null);
           setLoading(false);
         }
-      } catch {
-        if (!cancelled) {
-          setProfile(null);
-          setLoading(false);
+      } catch (err) {
+        // RLS might have blocked - retry once after a longer delay
+        console.log('[Auth] Profile query error, retrying...');
+        await new Promise(r => setTimeout(r, 500));
+        if (cancelled) return;
+
+        try {
+          const retryData = await profileRepo.getById(user.id);
+          if (!cancelled) {
+            setProfile(retryData);
+            setLoading(false);
+          }
+        } catch {
+          if (!cancelled) {
+            setProfile(null);
+            setLoading(false);
+          }
         }
       }
     };
@@ -138,13 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-    setProfile(data ?? null);
-  }, [user, supabase]);
+    try {
+      const data = await profileRepo.getById(user.id);
+      setProfile(data);
+    } catch {
+      setProfile(null);
+    }
+  }, [user, profileRepo]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

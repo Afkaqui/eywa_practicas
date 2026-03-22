@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Database, Plus, Pencil, Trash2, X, Search, Loader2, BarChart3, FileText } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { useSupabase } from '@/lib/supabase/use-supabase';
+import { PortfolioRepository } from '@/lib/repositories/portfolio-repository';
 import type { PortfolioCompany, DiagnosticQuestion, DiagnosticOption } from '@/lib/types/database';
 
 type Tab = 'portfolio' | 'questions';
@@ -57,10 +58,8 @@ export function GestorDashboard() {
 /* ═══════════════════════ PORTFOLIO MANAGER ═══════════════════════ */
 
 function PortfolioManager() {
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = useSupabase();
+  const portfolioRepo = useMemo(() => new PortfolioRepository(supabase), [supabase]);
   const [companies, setCompanies] = useState<PortfolioCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -72,10 +71,12 @@ function PortfolioManager() {
   });
 
   const fetchCompanies = useCallback(async () => {
-    const { data } = await supabase.from('portfolio_companies').select('*').order('created_at', { ascending: false });
-    if (data) setCompanies(data);
+    try {
+      const data = await portfolioRepo.getAll();
+      setCompanies(data);
+    } catch { /* handle error */ }
     setLoading(false);
-  }, [supabase]);
+  }, [portfolioRepo]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
@@ -95,17 +96,21 @@ function PortfolioManager() {
   };
 
   const handleSave = async () => {
-    if (editing) {
-      await supabase.from('portfolio_companies').update(form).eq('id', editing.id);
-    } else {
-      await supabase.from('portfolio_companies').insert(form);
-    }
+    try {
+      if (editing) {
+        await portfolioRepo.update(editing.id, form);
+      } else {
+        await portfolioRepo.create(form as Omit<PortfolioCompany, 'id' | 'created_at' | 'updated_at'>);
+      }
+    } catch { /* handle error */ }
     setShowModal(false);
     fetchCompanies();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('portfolio_companies').delete().eq('id', id);
+    try {
+      await portfolioRepo.delete(id);
+    } catch { /* handle error */ }
     fetchCompanies();
   };
 
@@ -283,10 +288,7 @@ function PortfolioManager() {
 /* ═══════════════════════ QUESTIONS MANAGER ═══════════════════════ */
 
 function QuestionsManager() {
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = useSupabase();
   const [questions, setQuestions] = useState<DiagnosticQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);

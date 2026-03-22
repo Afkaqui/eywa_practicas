@@ -14,9 +14,11 @@ import {
   CheckCircle,
   Shield,
   Users,
-  Database
+  Database,
+  GraduationCap
 } from 'lucide-react';
 import type { UserRole } from '@/lib/types/database';
+import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants/roles';
 
 const logo = "/logo.png";
 
@@ -29,20 +31,6 @@ interface NavigationSidebarProps {
   onLogout: () => void;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  superadmin: 'Super Admin',
-  admin: 'Administrador',
-  gestor: 'Gestor',
-  user: 'Usuario',
-};
-
-const ROLE_COLORS: Record<UserRole, string> = {
-  superadmin: 'bg-red-100 text-red-700',
-  admin: 'bg-purple-100 text-purple-700',
-  gestor: 'bg-blue-100 text-blue-700',
-  user: 'bg-gray-100 text-gray-700',
-};
-
 export function NavigationSidebar({ currentView, userRole, userName, userEmail, onNavigate, onLogout }: NavigationSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -51,6 +39,7 @@ export function NavigationSidebar({ currentView, userRole, userName, userEmail, 
     { id: 'diagnostic', icon: Stethoscope, label: 'Diagnóstico' },
     { id: 'validator', icon: CheckCircle, label: 'Validador de Proyectos' },
     { id: 'portfolio', icon: BarChart3, label: 'Portfolio' },
+    { id: 'edutech', icon: GraduationCap, label: 'Academia' },
   ];
 
   const roleItems: { id: string; icon: typeof Shield; label: string; roles: UserRole[] }[] = [
